@@ -16,15 +16,10 @@ import SmartHandoffNotAvailableModal from '../../components/smart-handoffs/smart
 import GranuleAlertModalBody from '../../components/smart-handoffs/smart-handoff-granule-alert';
 import { imageUtilGetCoordsFromPixelValues } from '../../modules/image-download/util';
 import { onClose, openCustomContent } from '../../modules/modal/actions';
-import { getActiveLayers } from '../../modules/layers/selectors';
+import { getCollectionsForSmartHandoffs } from '../../modules/layers/selectors';
 import getSelectedDate from '../../modules/date/selectors';
 import safeLocalStorage from '../../util/local-storage';
 import openEarthDataSearch from '../../components/smart-handoffs/util';
-
-const STD_NRT_MAP = {
-  STD: 'Standard',
-  NRT: 'Near Real-Time',
-};
 
 /**
  * The Smart-Handoff components replaces the existing data download capability
@@ -53,7 +48,7 @@ class SmartHandoff extends Component {
         x2: screenWidth / 2 + 100,
         y2: screenHeight / 2 + 100,
       },
-      selectedLayer: undefined,
+
       selectedCollection: undefined,
       showBoundingBox: false,
       isSearchingForGranules: false,
@@ -78,20 +73,17 @@ class SmartHandoff extends Component {
    */
   componentDidUpdate(prevProps) {
     const {
-      activeLayers,
+      collectionMap,
       displayDate,
       proj,
     } = this.props;
     const {
       currentExtent,
-      selectedLayer,
       selectedCollection,
     } = this.state;
 
-    // Determine if existing selected layer is active still and visibility toggle is 'ON'
-    const isLayerStillActive = activeLayers.find(({ id }) => selectedLayer && selectedLayer.id);
 
-    if (selectedCollection && !isLayerStillActive) {
+    if (selectedCollection && !collectionMap[selectedCollection.value]) {
       // eslint-disable-next-line react/no-did-update-set-state
       this.setState(this.baseState);
     }
@@ -111,8 +103,8 @@ class SmartHandoff extends Component {
    * Fires when the bounding box / crop toggle is activated and changed
    */
   updateExtent() {
-    const { currentExtent, selectedLayer } = this.state;
-    if (selectedLayer && currentExtent) {
+    const { currentExtent, selectedCollection } = this.state;
+    if (selectedCollection && currentExtent) {
       this.updateGranuleCount(currentExtent);
     }
   }
@@ -217,7 +209,6 @@ class SmartHandoff extends Component {
     } = this.props;
     const {
       currentExtent,
-      selectedLayer,
       selectedCollection,
       showBoundingBox,
     } = this.state;
@@ -230,20 +221,19 @@ class SmartHandoff extends Component {
       proj.id, selectedDate, selectedCollection, currentExtent, showBoundingBox,
     );
     if (!hideModal) {
-      showWarningModal(displayDate, selectedLayer, selectedCollection, continueToEDS);
+      showWarningModal(displayDate, selectedCollection, continueToEDS);
     } else {
       continueToEDS();
     }
   }
 
   /**
-   * Fires when user selected a different layer
+   * Fires when user selected a different collection
    * @param {*} collection
    * @param {*} currentExtent - the current boundaries of the bounding box
    */
-  onLayerChange(layer, collection, currentExtent) {
+  onCollectionChange(collection, currentExtent) {
     this.setState({
-      selectedLayer: layer,
       selectedCollection: collection,
       totalGranules: undefined,
     }, () => this.updateGranuleCount(currentExtent));
@@ -258,13 +248,12 @@ class SmartHandoff extends Component {
   async updateGranuleCount({ southWest, northEast }) {
     const { selectedDate } = this.props;
     const {
-      selectedLayer,
       selectedCollection,
       showBoundingBox,
       totalGranules,
     } = this.state;
 
-    if (!selectedLayer) return;
+    if (!selectedCollection) return;
 
     // Places the compoent state in a loading state; triggers {...} animation.
     this.setState({ isSearchingForGranules: true });
@@ -299,13 +288,13 @@ class SmartHandoff extends Component {
     this.setState(newState);
   }
 
-  renderCollectionTooltip = ({ value, title, type }) => {
+  renderCollectionTooltip = ({ value, title, type }, tooltipTarget) => {
     const cmrSearchDetailURL = `https://cmr.earthdata.nasa.gov/search/concepts/${value}.html`;
     return (
       <UncontrolledTooltip
         className="zot-tooltip"
         boundariesElement="window"
-        target={`${util.encodeId(value)}-tooltp`}
+        target={tooltipTarget}
         placement="right"
         trigger="hover"
         autohide={false}
@@ -322,45 +311,54 @@ class SmartHandoff extends Component {
   /**
    * Render radio buttons for layer selection
    */
-  renderLayerChoices() {
-    const { activeLayers } = this.props;
+  renderCollectionChoices() {
+    const { collectionMap } = this.props;
     const { selectedCollection, currentExtent } = this.state;
+    const collections = Object.keys(collectionMap).map((key) => collectionMap[key]);
 
     return (
       <div className="smart-handoff-layer-list">
-
-        {activeLayers.map((layer) => layer.conceptIds && (
-        <div className="layer-item" key={`${util.encodeId(layer.id)}-layer-choice`}>
-          <div className="layer-title">{layer.title}</div>
-          <div className="layer-subtitle">{layer.subtitle}</div>
-
-          {layer.conceptIds.map((collection) => {
+        {
+          collections.map((collection) => {
             const {
-              type, value, version,
+              value, layers, type,
             } = collection;
-            const inputId = `${util.encodeId(value)}-collection-choice`;
-
+            const isSelected = (selectedCollection || {}).value === value;
+            const inputId = `${util.encodeId(value)}-collection`;
+            const tooltipTarget = `${value}-tooltip`;
+            const itemClass = isSelected ? 'layer-item selected' : 'layer-item';
             return (
-              <div className="collection-choice" key={inputId}>
-                <input
-                  id={inputId}
-                  type="radio"
-                  name="smart-handoff-layer-radio"
-                  checked={(selectedCollection || {}).value === value}
-                  onChange={() => this.onLayerChange(layer, collection, currentExtent)}
-                />
-                <label htmlFor={inputId}>{`${STD_NRT_MAP[type]} - v${version}`}</label>
-                <FontAwesomeIcon id={`${util.encodeId(value)}-tooltp`} icon="info-circle" />
-                {this.renderCollectionTooltip(collection)}
+              <div className={itemClass} key={`${util.encodeId(value)}-collection-choice`}>
+                <div className="collection-choice" key={inputId}>
+                  <input
+                    id={inputId}
+                    type="radio"
+                    name="smart-handoff-layer-radio"
+                    checked={isSelected}
+                    onChange={() => this.onCollectionChange(collection, currentExtent)}
+                  />
+                  <label htmlFor={inputId} id={tooltipTarget}>
+                    {`${type} - ${collection.title}`}
+                  </label>
+                  {this.renderCollectionTooltip(collection, tooltipTarget)}
+                </div>
+                {layers.map(({ title, subtitle }) => (
+                  <>
+                    <FontAwesomeIcon icon="layer-group" />
+                    <div className="layer-info">
+                      <div className="layer-title">{title}</div>
+                      <div className="layer-subtitle">{subtitle}</div>
+                    </div>
+                  </>
+                ))}
               </div>
             );
-          })}
-
-        </div>
-        ))}
+          })
+        }
       </div>
     );
   }
+
 
   /**
    * Render the checkbox to toggle the cropbox and the cropbox itself
@@ -375,7 +373,7 @@ class SmartHandoff extends Component {
     const {
       boundaries,
       coordinates,
-      selectedLayer,
+      selectedCollection,
       showBoundingBox,
     } = this.state;
 
@@ -383,7 +381,7 @@ class SmartHandoff extends Component {
       x, y, x2, y2,
     } = boundaries;
 
-    return selectedLayer && proj.id === 'geographic' && (
+    return selectedCollection && proj.id === 'geographic' && (
       <>
         <div className="smart-handoff-crop-toggle">
           <Checkbox
@@ -498,22 +496,19 @@ class SmartHandoff extends Component {
    */
   render() {
     const {
-      activeLayers,
+      collectionMap,
       isActive,
       showNotAvailableModal,
     } = this.props;
     const {
-      selectedLayer,
+      selectedCollection,
     } = this.state;
 
     // Determine if download 'smart-handoff' tab is activated by user
     if (!isActive) return null;
 
-    // Determine if the download button is enabled
-    const isValidDownload = selectedLayer && selectedLayer.id;
-    const availableLayers = activeLayers.filter(({ conceptIds }) => conceptIds).length;
 
-    if (!availableLayers > 0) {
+    if (!Object.keys(collectionMap).length > 0) {
       return this.renderNoLayersToDownload();
     }
     return (
@@ -528,7 +523,7 @@ class SmartHandoff extends Component {
           Why are some layers not available?
         </a>
         <hr />
-        {this.renderLayerChoices()}
+        {this.renderCollectionChoices()}
         <hr />
         {this.renderCropBox()}
         {this.renderGranuleCount()}
@@ -536,7 +531,7 @@ class SmartHandoff extends Component {
           onClick={this.onClickDownload}
           text="DOWNLOAD VIA EARTHDATA SEARCH"
           className="download-btn red"
-          valid={!!isValidDownload}
+          valid={!!selectedCollection}
         />
       </div>
     );
@@ -548,7 +543,7 @@ class SmartHandoff extends Component {
  */
 SmartHandoff.propTypes = {
   isActive: PropTypes.bool,
-  activeLayers: PropTypes.array,
+  collectionMap: PropTypes.object,
   displayDate: PropTypes.string,
   map: PropTypes.object.isRequired,
   proj: PropTypes.object,
@@ -581,10 +576,10 @@ const mapStateToProps = (state) => {
   const selectedDate = getSelectedDate(state);
   const selectedDateFormatted = moment.utc(selectedDate).format('YYYY-MM-DD'); // 2020-01-01
   const displayDate = moment.utc(selectedDate).format('YYYY MMM DD'); // 2020 JAN 01
-  const filterForSmartHandoff = ({ projections, disableSmartHandoff }) => projections[proj.id] && !disableSmartHandoff;
+  const collectionMap = getCollectionsForSmartHandoffs(state);
 
   return {
-    activeLayers: getActiveLayers(state).filter(filterForSmartHandoff),
+    collectionMap,
     displayDate,
     map,
     proj: proj.selected,
@@ -599,7 +594,7 @@ const mapStateToProps = (state) => {
  * @param {*} dispatch | A function of the Redux store that is triggered upon a change of state.
  */
 const mapDispatchToProps = (dispatch) => ({
-  showWarningModal: (displayDate, selectedLayer, selectedCollection, continueToEDS) => {
+  showWarningModal: (displayDate, selectedCollection, continueToEDS) => {
     googleTagManager.pushEvent({
       event: 'smart_handoffs_open_warning_modal',
     });
@@ -610,11 +605,10 @@ const mapDispatchToProps = (dispatch) => ({
         desktopOnly: true,
         bodyComponentProps: {
           displayDate,
-          selectedLayer,
           selectedCollection,
           continueToEDS,
         },
-        size: 'lg',
+        size: 'md',
       }),
     );
   },

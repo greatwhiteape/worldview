@@ -66,6 +66,35 @@ export const getAllActiveLayers = createSelector(
   (proj, compare, layers) => getLayers({ proj, compare, layers }, {}),
 );
 
+export const getCollectionsForSmartHandoffs = createSelector(
+  [getActiveLayers, getProjState],
+  (activeLayers, proj) => {
+    const collectionMap = {};
+    activeLayers.forEach((layer) => {
+      const { conceptIds, projections, disableSmartHandoff } = layer;
+      if (!projections[proj.id] || disableSmartHandoff || !conceptIds) {
+        return;
+      }
+      conceptIds.forEach(({
+        value, title, type, version,
+      }) => {
+        if (!collectionMap[value]) {
+          collectionMap[value] = {
+            value,
+            title,
+            type,
+            layers: [layer],
+            version,
+          };
+        } else {
+          collectionMap[value].layers.push(layer);
+        }
+      });
+    });
+    return collectionMap;
+  },
+);
+
 export const getAllActiveOverlaysBaselayers = createSelector(
   [getProjState, getCompareState, getLayerState],
   (proj, compare, layers) => getLayers({ proj, compare, layers }, { group: 'all' }),

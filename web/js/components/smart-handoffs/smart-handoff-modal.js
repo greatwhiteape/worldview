@@ -12,11 +12,10 @@ import safeLocalStorage from '../../util/local-storage';
  * layer data and granule files that are available for download.
  */
 function SmartHandoffModal({
-  displayDate, selectedLayer, selectedCollection, continueToEDS,
+  displayDate, selectedCollection, continueToEDS,
 }) {
   // Hides Earthdata Search information by default
   const [showMoreInfo, toggleInfo] = useState(false);
-  const { title, subtitle } = selectedLayer;
   const cmrSearchDetailURL = `https://cmr.earthdata.nasa.gov/search/concepts/${selectedCollection.value}.html`;
 
   return (
@@ -26,7 +25,6 @@ function SmartHandoffModal({
       <div className="smart-handoff-heading">
         <a href="https://search.earthdata.nasa.gov" target="_blank" rel="noopener noreferrer">
           <img src="images/earth-data-search-logo.png" />
-          <h1>search.earthdata.nasa.gov</h1>
         </a>
       </div>
 
@@ -77,29 +75,31 @@ function SmartHandoffModal({
         <h2><span>{showMoreInfo ? 'Hide Info' : 'Show More Info'}</span></h2>
       </div>
 
-      <div className="smart-handoff-layer-info row">
-        <div className="col">
-          <h1> Selected Worldview layer: </h1>
-          <p className="smart-handoff-layer-name">
-            {title}
-          </p>
-          <p className="smart-handoff-layer-name">
-            {subtitle}
-          </p>
-        </div>
+      <div className="smart-handoff-layer-info">
 
-        <div className="col">
-          <h1> Selected date:</h1>
-          <p><span style={{ fontFamily: 'monospace' }}>{displayDate}</span></p>
-        </div>
-
-        <div className="col">
-          <h1> Collection details: </h1>
+        <h1> Collection: </h1>
+        <div className="handoff-modal-link">
           <a href={cmrSearchDetailURL} target="_blank" rel="noopener noreferrer">
-            <p>{`${selectedCollection.title}`}</p>
+            {`${selectedCollection.title}`}
           </a>
         </div>
 
+        <h1> Layers: </h1>
+        {selectedCollection.layers.map(
+          ({ title, subtitle }) => (
+            <>
+              <div className="handoff-modal-layer-title">
+                {title}
+              </div>
+              <div className="handoff-modal-layer-subtitle">
+                {subtitle}
+              </div>
+            </>
+          ),
+        )}
+
+        <h1> Date:</h1>
+        <div className="handoff-modal-date">{displayDate}</div>
       </div>
 
       <div className="smart-handoff-button-group">
@@ -150,7 +150,6 @@ SmartHandoffModal.propTypes = {
   continueToEDS: PropTypes.func,
   displayDate: PropTypes.string,
   selectedCollection: PropTypes.object,
-  selectedLayer: PropTypes.object,
 };
 
 export default SmartHandoffModal;
