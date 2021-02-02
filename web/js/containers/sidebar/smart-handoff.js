@@ -342,14 +342,14 @@ class SmartHandoff extends Component {
                   </label>
                   {this.renderCollectionTooltip(collection, tooltipTarget)}
                 </div>
-                {layers.map(({ title, subtitle }) => (
-                  <>
+                {layers.map(({ id, title, subtitle }) => (
+                  <div key={id}>
                     <FontAwesomeIcon icon="layer-group" />
                     <div className="layer-info">
                       <div className="layer-title">{title}</div>
                       <div className="layer-subtitle">{subtitle}</div>
                     </div>
-                  </>
+                  </div>
                 ))}
               </div>
             );
@@ -483,7 +483,7 @@ class SmartHandoff extends Component {
         </h1>
         <hr />
         <h2>
-          <a href className="help-link" onClick={showNotAvailableModal}>
+          <a className="help-link" onClick={showNotAvailableModal}>
             Why are my layers not available?
           </a>
         </h2>
@@ -519,7 +519,7 @@ class SmartHandoff extends Component {
           <a href="https://search.earthdata.nasa.gov" target="_blank" rel="noopener noreferrer"> NASA&apos;s Earthdata Search </a>
           application.
         </div>
-        <a href className="help-link" onClick={showNotAvailableModal}>
+        <a className="help-link" onClick={showNotAvailableModal}>
           Why are some layers not available?
         </a>
         <hr />
