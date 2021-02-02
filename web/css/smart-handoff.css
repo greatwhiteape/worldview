@@ -1,6 +1,6 @@
 /* Smart handoff side panel */
 .smart-handoff-side-panel {
-  margin: 10px;
+  margin: 5px;
   color: #bbb;
 }
 
@@ -66,7 +66,7 @@
   }
   .layer-info {
     background: #aaa;
-    margin: 5px 0 5px 18px;
+    margin: 2px 0 5px 18px;
     padding: 3px 5px;
   }
   svg {
@@ -86,20 +86,21 @@
     color: #333;
   }
   .collection-choice {
-    margin: 5px 0;
     input {
       cursor: pointer;
       position: relative;
+      top: -2px;
     }
     label {
       color: #eee;
       cursor: pointer;
       margin: 0 0 0 5px;
+      padding: 3px 0;
       font-size: 14px;
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
-      width: 230px;
+      width: 92%;
     }
   }
 }
